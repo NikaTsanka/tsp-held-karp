@@ -10,5 +10,5 @@ link_libraries(${X11_LIBRARIES})
 
 include_directories(${X11_INCLUDE_DIR})
 
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES tsp_held_karp.cpp)
 add_executable(tsp_project3 ${SOURCE_FILES})
