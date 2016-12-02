@@ -10,13 +10,19 @@
 #include <algorithm>
 #include <list>
 
-
 using namespace std;
+/*
+ * https://www.youtube.com/watch?v=-JjA4BLQyqE
+ * https://www.codeproject.com/articles/762581/held-karp-algorithm-implementation-in-csharp
+ * http://gebweb.net/blogpost/2011/06/24/the-dynamic-programming-algorithm-for-the-travelling-salesman-problem/
+ * */
 
 // vars
-vector<pair<int, int> > points;
+vector<pair<int, int> > coordinates;
 vector<vector<int> > adj_Matrix;
-vector<vector<int> > combinations;
+vector<vector<int> > path_indices;
+vector<pair<int, int> > connecting_indices;
+vector<vector<pair<int, int> > > points;
 const int DEFAULT_VAL = 0;
 
 // here are our X variables
@@ -32,12 +38,18 @@ void redraw();
 
 // my methods
 void drawing_board(bool);
-void held_karp(unsigned long);
+void held_karp(unsigned long, int);
 vector<vector<int> > gen_combinations(int, int);
 int dist(int, int, int, int);
+bool compare_pair(pair<int, int> &, pair<int, int> &);
+void connect_slices();
 void draw_point(Colormap, char [], XColor &, int);
 void draw_point(Colormap, char [], XColor &, int, int);
-void draw_line(Colormap, char [], XColor &, int, int);
+void draw_line(Colormap, char [], XColor &, int, int, vector<pair<int, int> >);
+void draw_line(Colormap c, char [], XColor &, int, int, int, int);
+void draw_line(Colormap c, char [], XColor &, int, int);
+
+
 
 int main(int argc, char *argv[]) {
     //std::cout << "Hello, World!" << std::endl;
@@ -46,25 +58,21 @@ int main(int argc, char *argv[]) {
         int x, y;
         ifstream input_file(argv[1]);
         while(input_file >> x >> y) {
-            points.push_back(make_pair(x, y));
+            coordinates.push_back(make_pair(x, y));
         }
         input_file.close();
 
-        /*cout << "Number of points: " << points.size() << endl;
+        /*cout << "Number of coordinates: " << coordinates.size() << endl;
 
-        for (int i = 0; i < points.size(); ++i) {
-            printf("x = %d, y = %d \n", points[i].first, points[i].second);
+        for (int i = 0; i < coordinates.size(); ++i) {
+            printf("x = %d, y = %d \n", coordinates[i].first, coordinates[i].second);
         }*/
 
         drawing_board(true);
-
     } else {
         printf("Mode: Interactive\n");
         drawing_board(false);
-
     }
-
-
 }
 
 #pragma clang diagnostic push
@@ -83,6 +91,7 @@ void drawing_board(bool mode) {
     Colormap colormap;
     char color_black[] = "#000000";
     char firebrick[] = "#B22222";
+    char navy_blue[] = "#000080";
     colormap = DefaultColormap(dis, 0);
 
     // vars
@@ -90,7 +99,6 @@ void drawing_board(bool mode) {
     unsigned long n;
     bool input = true;
     bool display_result = true;
-
 
     // start the main loop
     cout << "You can use \'q\' or \'Q\' to terminate the program at any time. :)\n";
@@ -106,11 +114,10 @@ void drawing_board(bool mode) {
                     redraw();
                     // now put the servers on the screen
                     if (mode) {
-                        for (int i = 0; i < points.size(); ++i) {
+                        for (int i = 0; i < coordinates.size(); ++i) {
                             draw_point(colormap, color_black, color, i);
                         }
                     }
-
                 }
                 break;
 
@@ -134,9 +141,9 @@ void drawing_board(bool mode) {
                     // catch left mouse click
                     if (event.xbutton.button == Button1 and input) {
                         // store the point
-                        points.push_back(make_pair(x, y));
+                        coordinates.push_back(make_pair(x, y));
                         // draw the point
-                        draw_point(colormap, firebrick, color, x, y);
+                        draw_point(colormap, navy_blue, color, x, y);
 
                     }
                 } // mode
@@ -144,45 +151,215 @@ void drawing_board(bool mode) {
                 if (event.xbutton.button == Button3 and display_result) {
                     input = false;
                     // init the matrix with 0
-                    n = points.size();
-                    cout << "Number of points: " << n << endl;
-                    adj_Matrix.resize(n, vector<int>(n, DEFAULT_VAL));
-                    //printf("adj_Matrix[%d][%d]\n", (int) adj_Matrix.size(), (int) adj_Matrix[0].size());
-
-                    // calc distances and fill the matrix
-                    for (int i = 0; i < n; ++i) {
-                        for (int j = i + 1; j < n; ++j) {
-                            adj_Matrix[i][j] = adj_Matrix[j][i] = dist(points[i].first, points[i].second,
-                                                                       points[j].first, points[j].second);
-                        }
-                    }
-
-                    /*0,  2,  9, 10
-                      1,  0,  6,  4
-                      15, 7,  0,  8
-                      6,  3, 12,  0
-                      */
-
-                    /*for (int i = 0; i < n; ++i) {
-                        for (int j = 0; j < n; ++j) {
-                            printf("%d,",adj_Matrix[i][j]);
-                        }
-                        cout << "\n";
+                    // n number of coordinates
+                    n = coordinates.size();
+                    cout << "Number of coordinates: " << n << endl;
+                    /*for (int i = 0; i < coordinates.size(); ++i) {
+                        printf("x = %d, y = %d \n", coordinates[i].first, coordinates[i].second);
                     }*/
-
-                    /*for (int i = 0; i < points.size(); ++i) {
-                        printf("x = %d, y = %d \n", points[i].first, points[i].second);
-                    }*/
-
-
-
 
                     if (n <= 15) {
-                        held_karp(n);
+                        adj_Matrix.resize(n, vector<int>(n, DEFAULT_VAL));
+                        //printf("adj_Matrix[%d][%d]\n", (int) adj_Matrix.size(), (int) adj_Matrix[0].size());
+
+                        // calc distances and fill the matrix
+                        for (int i = 0; i < n; ++i) {
+                            for (int j = i + 1; j < n; ++j) {
+                                adj_Matrix[i][j] = adj_Matrix[j][i] = dist(coordinates[i].first, coordinates[i].second,
+                                                                           coordinates[j].first, coordinates[j].second);
+                            }
+                        }
+
+                        /*for (int i = 0; i < n; ++i) {
+                            for (int j = 0; j < n; ++j) {
+                                printf("%d,",adj_Matrix[i][j]);
+                            }
+                            cout << "\n";
+                        }*/
+                        held_karp(n, 1);
+                        //cout << "path_indices.size(): " << path_indices.size() << endl;
+                        for (int k = 0; k < path_indices.size(); ++k) {
+                            for (int i = 0; i < path_indices[k].size() - 1; ++i) {
+                                draw_line(colormap, firebrick, color, path_indices[k][i], path_indices[k][i + 1]);
+
+                            }
+                        }
                         display_result = false;
                     } else {
+                        // first sort them
+                        sort(coordinates.begin(), coordinates.end(), compare_pair);
+                        /*for (int i = 0; i < coordinates.size(); ++i) {
+                            printf("x = %d, y = %d \n", coordinates[i].first, coordinates[i].second);
+                        }*/
                         // break them in sets of 15
 
+                        int k = (int) (n / 15);
+                        int dif = (int) (n - (k * 15));
+                        int div = k;
+                        int end = 0;
+                        unsigned long points_size = 0;
+                        //unsigned long path_size = 0;
+                        //cout << k << endl;
+                        //cout << dif << endl;
+
+                        int g = (dif == 0) ? k : k + 1;
+
+                        for (int i = 0; i < g; ++i) {
+                            // slice and fill matrix with it and calculate
+                            div--;
+                            if (div < 0) {
+                                end = 0;
+                                points_size = (unsigned long) dif;
+                            } else {
+                                end = (int) (n - (n - (((div) * 15) + dif)));
+                                points_size = 15;
+                            }
+                            //cout << "range " << i * 15 << " - " << end << " size: " << points_size <<"\n";
+                            vector<pair<int, int> > points_slice;//(coordinates.begin() + (i * 15), coordinates.end() - end);
+
+                            copy(coordinates.begin() + (i * 15), coordinates.end() - end, back_inserter(points_slice));
+
+                            //printf("points_slice size: %d\n", (int) points_slice.size());
+
+
+                            /*for (int l = 0; l < points_slice.size(); ++l) {
+                                printf("x = %d, y = %d \n", points_slice[l].first, points_slice[l].second);
+                            }*/
+
+                            adj_Matrix.resize(points_size, vector<int>(points_size, DEFAULT_VAL));
+                            //printf("adj_Matrix[%d][%d]\n", (int) adj_Matrix.size(), (int) adj_Matrix[0].size());
+                            //path_size += points_size;
+                            //cout << "path_size: " << path_size << endl;
+                            //path_indices.resize(path_size);
+
+
+                            /*for (int w1 = 0; w1 < points_size; ++w1) {
+                                for (int j = 0; j < points_size; ++j) {
+                                    printf("%d,",adj_Matrix[w1][j]);
+                                }
+                                cout << "\n";
+                            }*/
+
+                            // calc distances and fill the matrix
+                            for (int indx = 0; indx < points_size; ++indx) {
+                                for (int j = indx + 1; j < points_size; ++j) {
+                                    adj_Matrix[indx][j] = adj_Matrix[j][indx] = dist(points_slice[indx].first, points_slice[indx].second,
+                                                                                     points_slice[j].first, points_slice[j].second);
+                                }
+                            }
+
+                            held_karp(points_size, i + 1);
+
+                            points.push_back(points_slice);
+
+                            /*for (int w1 = 0; w1 < points_size; ++w1) {
+                                for (int j = 0; j < points_size; ++j) {
+                                    printf("%d,",adj_Matrix[w1][j]);
+                                }
+                                cout << "\n";
+                            }*/
+                            //path_indices.clear();
+                            points_slice.clear();
+                            adj_Matrix.clear();
+
+
+                        }
+
+                        connect_slices();
+
+                        /*cout << "points.size(): " << path_indices.size() << endl;
+                        for (int p = 0; p < points.size(); ++p) {
+                            for (int i = 0; i < points[p].size(); ++i) {
+                                cout << i << ": x " << points[p][i].first << " , y " << points[p][i].second  << endl;
+                            }
+                        }*/
+
+                        /*for (int l = 0; l < connecting_indices.size(); ++l) {
+                            printf("p = %d, q = %d \n", connecting_indices[l].first, connecting_indices[l].second);
+                        }*/
+
+
+                        int num = (int) connecting_indices.size();
+                        //bool check = true;
+                        //cout << "path_indices.size(): " << path_indices.size() - 1 << endl;
+                        for (int m = 0; m < path_indices.size(); ++m) {
+                            //cout << m << ": " << path_indices[m] << endl;
+                            for (int i = 0; i < path_indices[m].size() - 1; ++i) {
+                                /*cout << i << ": x " << points[m][path_indices[m][i]].first << ", y "
+                                                    << points[m][path_indices[m][i + 1]].second << endl;*/
+
+                                if (m == 0) {
+                                    if (!(i == 0 && i == connecting_indices[m].first)) {
+                                        draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                    }
+                                    if (i + 1 == connecting_indices[m].first) {
+                                        //continue;
+                                        for (int j = 0; j < path_indices[m + 1].size(); ++j) {
+                                            if (j == connecting_indices[m].second) {
+                                                draw_line(colormap, firebrick, color,
+                                                          points[m][path_indices[m][i + 1]].first,
+                                                          points[m][path_indices[m][i + 1]].second,
+                                                          points[m + 1][path_indices[m + 1][j]].first,
+                                                          points[m + 1][path_indices[m + 1][j]].second);
+
+                                                draw_line(colormap, firebrick, color,
+                                                          points[m][path_indices[m][i + 2]].first,
+                                                          points[m][path_indices[m][i + 2]].second,
+                                                          points[m + 1][path_indices[m + 1][j + 1]].first,
+                                                          points[m + 1][path_indices[m + 1][j + 1]].second);
+                                            }
+                                        }
+                                        //cout << "add\n";
+                                        i+=1;
+                                    }
+                                    //cout << i << endl;
+                                } else {
+                                    if (m != num) {
+                                        if (!(i == 0 && i == connecting_indices[m].first ||
+                                              i == 0 && i == connecting_indices[m - 1].second)) {
+                                            draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                        }
+                                        if (i + 1 == connecting_indices[m - 1].second) {
+                                            i+=1;
+                                            //cout << "add\n";
+                                        }
+                                        if (i + 1 == connecting_indices[m].first) {
+                                            //continue;
+                                            for (int j = 0; j < path_indices[m + 1].size(); ++j) {
+                                                if (j == connecting_indices[m].second) {
+                                                    draw_line(colormap, firebrick, color,
+                                                              points[m][path_indices[m][i + 1]].first,
+                                                              points[m][path_indices[m][i + 1]].second,
+                                                              points[m + 1][path_indices[m + 1][j]].first,
+                                                              points[m + 1][path_indices[m + 1][j]].second);
+
+                                                    draw_line(colormap, firebrick, color,
+                                                              points[m][path_indices[m][i + 2]].first,
+                                                              points[m][path_indices[m][i + 2]].second,
+                                                              points[m + 1][path_indices[m + 1][j + 1]].first,
+                                                              points[m + 1][path_indices[m + 1][j + 1]].second);
+                                                }
+                                            }
+                                            i+=1;
+                                            //cout << "add\n";
+                                        }
+                                        //cout << i << endl;
+                                    }
+                                    if (num == m) {
+                                        if (!(i == 0 && i == connecting_indices[m - 1].second)) {
+                                            draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                        }
+                                        if (i + 1 == connecting_indices[m - 1].second) {
+                                            i+=1;
+                                            //cout << "add\n";
+                                        }
+                                        //cout << i << endl;
+                                    }
+                                }
+                            }
+                        }
+
+                        display_result = false;
                     }
                 }
                 break;
@@ -195,13 +372,7 @@ void drawing_board(bool mode) {
 }
 #pragma clang diagnostic pop
 
-void held_karp(unsigned long n) {
-    // init colors
-    XColor color;
-    Colormap colormap;
-    char dodger_blue[] = "#1E90FF";
-    colormap = DefaultColormap(dis, 0);
-
+void held_karp(unsigned long n, int group) {
     map<pair<int, int>, pair<int, int> > C;
     // then do this
     /*# Set transition cost from initial state
@@ -217,6 +388,8 @@ void held_karp(unsigned long n) {
                   << it->second.first << "," << it->second.second << ")} ";
     }
     cout << "\n";*/
+
+    vector<vector<int> > combinations;
 
     for (int i = 2; i < n; ++i) {
         // here generate combinations. sorted
@@ -237,17 +410,8 @@ void held_karp(unsigned long n) {
             }
             //cout << endl;
 
-            /*
-             *  // Find the lowest cost to get to this subset
-                for k in subset:
-                    prev = bits & ~(1 << k)
 
-                    res = []
-                    for m in subset:
-                        if m == 0 or m == k:
-                            continue
-                        res.append((C[(prev, m)][0] + dists[m][k], m))
-                    C[(bits, k)] = min(res)*/
+            // Find the lowest cost to get to this subset
 
             for (int k = 0; k < combinations[j].size(); ++k) {
                 int prev = bits & ~(1 << combinations[j][k]);
@@ -282,7 +446,6 @@ void held_karp(unsigned long n) {
                 for (iter = integer_list.begin(); iter != integer_list.end(); ++iter) {
                     cout << (*iter).first << "," << (*iter).second << endl;
                 }*/
-
                 list<pair<int, int> >::iterator it = min_element(integer_list.begin(), integer_list.end());
                 //cout << "min: " << (*it).first << "," << (*it).second << endl;
                 //C[(bits, k)] = min(res)*/
@@ -332,7 +495,7 @@ void held_karp(unsigned long n) {
 
     //cout << "parent: " << parent << endl;
 
-    //Backtrack to find full path
+    // Backtrack to find full path
     list<int> path;
 
     for (int i = 0; i < n - 1; ++i) {
@@ -351,35 +514,44 @@ void held_karp(unsigned long n) {
         bits = new_bits;
 
     }
-    // add manual starting and ending points.
+    // add manual starting and ending coordinates.
     path.push_back(0);
     path.push_front(0);
 
     path.reverse();
 
     //int *path_index = (int *) malloc(n + 1);
-    int path_index[n + 1];
-    int index = 0;
+    //int path_index[n + 1];
+    //int index = 0;
 
     //cout << "opt: " << opt << " ( ";
+
+    vector<int> path_slice;
 
     for(std::list<int>::iterator list_iter = path.begin();
         list_iter != path.end(); list_iter++)
     {
         //std::cout<<*list_iter << " ";
-        path_index[index] = *list_iter;
-        index++;
+        //path_index[index] = *list_iter;
+        path_slice.push_back(*list_iter);
+        //index++;
     }
-    //cout << ")\n";
+    //cout << "\n";
 
-    for (int l = 0; l < index - 1; ++l) {
-        //cout << l << ": " << path_index[l] << endl;
-        draw_line(colormap, dodger_blue, color, path_index[l], path_index[l + 1]);
-    }
 
-    cout << "Total length of the tour: " << opt << endl;
+    /*for (int l = 0; l < n + 1; ++l) {
+        cout << l << ": " << path_slice[l] << endl;
+    }*/
+
+
+
+    cout << "Total length of the tour #" << group << ": "  << opt << endl;
+    //printf("Total length of the tour #%d: %d", group, opt );
+    path_indices.push_back(path_slice);
 
     // clear containers
+    //path_slice.clear();
+    combinations.clear();
     C.clear();
     path.clear();
     res.clear();
@@ -416,11 +588,63 @@ int dist(int x1, int y1, int x2, int y2) {
     return (int) sqrt(pow(x2 - x1, 2.0f) + pow(y2 - y1, 2.0f));
 }
 
+bool compare_pair(pair<int, int>& i, pair<int, int>& j) {
+    return i.first < j.first;
+}
+
+void connect_slices() {
+    // finds optimal connections between the groups
+    for (int g = 0; g < path_indices.size() - 1; ++g) { // number of groups
+        // pick an edge from group i
+        int pi = 0;
+        //int pi1 = 0;
+        int qj = 0;
+        //int qj1 = 0;
+
+        int overall_min_distance = 99999;
+        int min_distance = 99999;
+        for (int i = 0; i < path_indices[g].size() - 1; ++i) {
+            int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
+            int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
+            //printf("pix=%d, piy=%d, pi1x=%d, pi1y=%d\n", pix, pix, pi1x, pi1y);
+            for (int j = 0; j < path_indices[g + 1].size() - 1; ++j) {
+                int qjx =  points[g + 1][path_indices[g + 1][j]].first,     qjy = points[g + 1][path_indices[g + 1][j]].second;
+                int qj1x = points[g + 1][path_indices[g + 1][j + 1]].first, qj1y = points[g + 1][path_indices[g + 1][j + 1]].second;
+
+                //int dist_pi_qj1 = dist(pix, piy, qj1x, qj1y);
+                //int dist_pi1_qj = dist(pi1x, pi1y, qjx, qjy);
+                int dist_pi_qj = dist(pix, piy, qjx, qjy);
+                int dist_pi1_qj1 = dist(pi1x, pi1y, qj1x, qj1y);
+
+                int distance =  dist_pi_qj + dist_pi1_qj1; //dist_pi_qj1 + dist_pi1_qj +
+
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    pi = i;
+                    //pi1 = i + 1;
+                    qj = j;
+                    //qj1 = j + 1;
+                    //cout << "MIN Distance: " << distance << endl;
+                }
+                //cout << "Distance: " << distance << endl;
+            }
+            //cout << "Sub MIN Distance: " << min_distance << endl;
+            if (min_distance < overall_min_distance) {
+                overall_min_distance = min_distance;
+            }
+            //cout << endl;
+        }
+        //cout << "----------------------OVERALL MIN Distance: " << overall_min_distance << " ----------------------" << endl;
+        //printf("pi=%d, qj=%d\n", pi, qj);
+        connecting_indices.push_back(make_pair(pi, qj));
+    }
+}
+
 void draw_point(Colormap colormap, char color_name[], XColor &color, int index) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
     XSetForeground(dis, gc, color.pixel);
-    XFillArc(dis, win, gc, points[index].first-(15/2), points[index].second-(15/2), 8, 8, 0, 360*64);
+    XFillArc(dis, win, gc, coordinates[index].first-(15/2), coordinates[index].second-(15/2), 8, 8, 0, 360*64);
 }
 
 void draw_point(Colormap colormap, char color_name[], XColor &color, int x, int y) {
@@ -430,12 +654,26 @@ void draw_point(Colormap colormap, char color_name[], XColor &color, int x, int 
     XFillArc(dis, win, gc, x-(15/2), y-(15/2), 8, 8, 0, 360*64);
 }
 
+void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j, vector<pair<int, int> > current_points) {
+    XParseColor(dis, colormap, color_name, &color);
+    XAllocColor(dis, colormap, &color);
+    XSetForeground(dis, gc, color.pixel);
+    XDrawLine(dis,win,gc,current_points[i].first,current_points[i].second,
+              current_points[j].first,current_points[j].second);
+}
+
+void draw_line(Colormap colormap, char color_name[], XColor &color, int ix, int iy, int jx, int jy) {
+    XParseColor(dis, colormap, color_name, &color);
+    XAllocColor(dis, colormap, &color);
+    XSetForeground(dis, gc, color.pixel);
+    XDrawLine(dis,win,gc,ix,iy,jx,jy);
+}
+
 void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
     XSetForeground(dis, gc, color.pixel);
-    XDrawLine(dis,win,gc,points[i].first,points[i].second,
-              points[j].first,points[j].second);
+    XDrawLine(dis,win,gc,coordinates[i].first,coordinates[i].second,coordinates[j].first,coordinates[j].second);
 }
 
 void init_x() {
@@ -447,7 +685,7 @@ void init_x() {
     black=BlackPixel(dis,screen), white=WhitePixel(dis, screen);
 
     win=XCreateSimpleWindow(dis, DefaultRootWindow(dis), 0, 0,
-                            700, 700, 5, black, white);
+                            500, 500, 5, black, white);
 
     XSetStandardProperties(dis,win,"TSP Simulation - Held-Karp Algorithm",NULL,None,NULL,0,NULL);
     XSelectInput(dis, win, ExposureMask|ButtonPressMask|KeyPressMask);
@@ -462,9 +700,13 @@ void init_x() {
 };
 
 void close_x() {
-    combinations.clear();
-    points.clear();
+    // clear();
+    coordinates.clear();
     adj_Matrix.clear();
+    path_indices.clear();
+    connecting_indices.clear();
+    points.clear();
+
     XFreeGC(dis, gc);
     XDestroyWindow(dis,win);
     XCloseDisplay(dis);
