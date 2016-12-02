@@ -38,18 +38,16 @@ void redraw();
 
 // my methods
 void drawing_board(bool);
-void held_karp(unsigned long, int);
+int held_karp(unsigned long, int);
 vector<vector<int> > gen_combinations(int, int);
 int dist(int, int, int, int);
 bool compare_pair(pair<int, int> &, pair<int, int> &);
-void connect_slices();
+int connect_slices();
 void draw_point(Colormap, char [], XColor &, int);
 void draw_point(Colormap, char [], XColor &, int, int);
 void draw_line(Colormap, char [], XColor &, int, int, vector<pair<int, int> >);
 void draw_line(Colormap c, char [], XColor &, int, int, int, int);
 void draw_line(Colormap c, char [], XColor &, int, int);
-
-
 
 int main(int argc, char *argv[]) {
     //std::cout << "Hello, World!" << std::endl;
@@ -90,8 +88,9 @@ void drawing_board(bool mode) {
     XColor color;
     Colormap colormap;
     char color_black[] = "#000000";
-    char firebrick[] = "#B22222";
+    char crimson[] = "#DC143C";
     char navy_blue[] = "#000080";
+    char blue[] = "#0000FF";
     colormap = DefaultColormap(dis, 0);
 
     // vars
@@ -180,7 +179,7 @@ void drawing_board(bool mode) {
                         //cout << "path_indices.size(): " << path_indices.size() << endl;
                         for (int k = 0; k < path_indices.size(); ++k) {
                             for (int i = 0; i < path_indices[k].size() - 1; ++i) {
-                                draw_line(colormap, firebrick, color, path_indices[k][i], path_indices[k][i + 1]);
+                                draw_line(colormap, crimson, color, path_indices[k][i], path_indices[k][i + 1]);
 
                             }
                         }
@@ -201,6 +200,8 @@ void drawing_board(bool mode) {
                         //unsigned long path_size = 0;
                         //cout << k << endl;
                         //cout << dif << endl;
+
+                        int total_tour = 0;
 
                         int g = (dif == 0) ? k : k + 1;
 
@@ -248,7 +249,7 @@ void drawing_board(bool mode) {
                                 }
                             }
 
-                            held_karp(points_size, i + 1);
+                            total_tour += held_karp(points_size, i + 1);
 
                             points.push_back(points_slice);
 
@@ -261,11 +262,11 @@ void drawing_board(bool mode) {
                             //path_indices.clear();
                             points_slice.clear();
                             adj_Matrix.clear();
-
-
                         }
 
-                        connect_slices();
+                        total_tour += connect_slices();
+
+                        cout << "Total tour: " << total_tour << endl;
 
                         /*cout << "points.size(): " << path_indices.size() << endl;
                         for (int p = 0; p < points.size(); ++p) {
@@ -290,19 +291,19 @@ void drawing_board(bool mode) {
 
                                 if (m == 0) {
                                     if (!(i == 0 && i == connecting_indices[m].first)) {
-                                        draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                        draw_line(colormap, crimson, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
                                     }
                                     if (i + 1 == connecting_indices[m].first) {
                                         //continue;
                                         for (int j = 0; j < path_indices[m + 1].size(); ++j) {
                                             if (j == connecting_indices[m].second) {
-                                                draw_line(colormap, firebrick, color,
+                                                draw_line(colormap, blue, color,
                                                           points[m][path_indices[m][i + 1]].first,
                                                           points[m][path_indices[m][i + 1]].second,
                                                           points[m + 1][path_indices[m + 1][j]].first,
                                                           points[m + 1][path_indices[m + 1][j]].second);
 
-                                                draw_line(colormap, firebrick, color,
+                                                draw_line(colormap, blue, color,
                                                           points[m][path_indices[m][i + 2]].first,
                                                           points[m][path_indices[m][i + 2]].second,
                                                           points[m + 1][path_indices[m + 1][j + 1]].first,
@@ -317,7 +318,7 @@ void drawing_board(bool mode) {
                                     if (m != num) {
                                         if (!(i == 0 && i == connecting_indices[m].first ||
                                               i == 0 && i == connecting_indices[m - 1].second)) {
-                                            draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                            draw_line(colormap, crimson, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
                                         }
                                         if (i + 1 == connecting_indices[m - 1].second) {
                                             i+=1;
@@ -327,13 +328,13 @@ void drawing_board(bool mode) {
                                             //continue;
                                             for (int j = 0; j < path_indices[m + 1].size(); ++j) {
                                                 if (j == connecting_indices[m].second) {
-                                                    draw_line(colormap, firebrick, color,
+                                                    draw_line(colormap, blue, color,
                                                               points[m][path_indices[m][i + 1]].first,
                                                               points[m][path_indices[m][i + 1]].second,
                                                               points[m + 1][path_indices[m + 1][j]].first,
                                                               points[m + 1][path_indices[m + 1][j]].second);
 
-                                                    draw_line(colormap, firebrick, color,
+                                                    draw_line(colormap, blue, color,
                                                               points[m][path_indices[m][i + 2]].first,
                                                               points[m][path_indices[m][i + 2]].second,
                                                               points[m + 1][path_indices[m + 1][j + 1]].first,
@@ -347,7 +348,7 @@ void drawing_board(bool mode) {
                                     }
                                     if (num == m) {
                                         if (!(i == 0 && i == connecting_indices[m - 1].second)) {
-                                            draw_line(colormap, firebrick, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
+                                            draw_line(colormap, crimson, color, path_indices[m][i], path_indices[m][i + 1], points[m]);
                                         }
                                         if (i + 1 == connecting_indices[m - 1].second) {
                                             i+=1;
@@ -372,7 +373,7 @@ void drawing_board(bool mode) {
 }
 #pragma clang diagnostic pop
 
-void held_karp(unsigned long n, int group) {
+int held_karp(unsigned long n, int group) {
     map<pair<int, int>, pair<int, int> > C;
     // then do this
     /*# Set transition cost from initial state
@@ -546,15 +547,14 @@ void held_karp(unsigned long n, int group) {
 
 
     cout << "Total length of the tour #" << group << ": "  << opt << endl;
-    //printf("Total length of the tour #%d: %d", group, opt );
     path_indices.push_back(path_slice);
 
     // clear containers
-    //path_slice.clear();
     combinations.clear();
     C.clear();
     path.clear();
     res.clear();
+    return opt;
 }
 
 vector<vector<int> > gen_combinations(int n, int r) {
@@ -592,8 +592,9 @@ bool compare_pair(pair<int, int>& i, pair<int, int>& j) {
     return i.first < j.first;
 }
 
-void connect_slices() {
+int connect_slices() {
     // finds optimal connections between the groups
+    int total = 0;
     for (int g = 0; g < path_indices.size() - 1; ++g) { // number of groups
         // pick an edge from group i
         int pi = 0;
@@ -637,7 +638,9 @@ void connect_slices() {
         //cout << "----------------------OVERALL MIN Distance: " << overall_min_distance << " ----------------------" << endl;
         //printf("pi=%d, qj=%d\n", pi, qj);
         connecting_indices.push_back(make_pair(pi, qj));
+        total += overall_min_distance;
     }
+    return total;
 }
 
 void draw_point(Colormap colormap, char color_name[], XColor &color, int index) {
