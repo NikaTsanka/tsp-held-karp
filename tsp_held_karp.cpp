@@ -12,7 +12,7 @@
 
 using namespace std;
 
-// vars
+// global vars
 vector<pair<int, int> > coordinates;
 vector<vector<int> > adj_Matrix;
 vector<vector<int> > path_indices;
@@ -203,7 +203,7 @@ void drawing_board(bool mode) {
                         total_tour += connect_slices();
 
                         cout << "Total tour: " << total_tour << " (includes new connecting edges)" << endl;
-
+                        // draw
                         int num = (int) connecting_indices.size();
                         for (int m = 0; m < path_indices.size(); ++m) {
                             for (int i = 0; i < path_indices[m].size() - 1; ++i) {
@@ -522,6 +522,7 @@ void close_x() {
     XFreeGC(dis, gc);
     XDestroyWindow(dis,win);
     XCloseDisplay(dis);
+    cout << "Program was terminated successfully";
     exit(1);
 };
 
