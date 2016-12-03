@@ -31,7 +31,7 @@ void init_x();
 void close_x();
 void redraw();
 
-// my methods
+// new methods
 void drawing_board(bool);
 int held_karp(unsigned long, int);
 vector<vector<int> > gen_combinations(int, int);
@@ -135,10 +135,19 @@ void drawing_board(bool mode) {
 
                 if (event.xbutton.button == Button3 and display_result) {
                     input = false;
+
+                    int total_tour = 0;
+
                     // init the matrix with 0
                     // n number of coordinates
                     n = coordinates.size();
                     cout << "Number of coordinates: " << n << endl;
+
+                    if (n == 0) {
+                        cout << "No coordinates given.\n";
+                        close_x();
+                    }
+
                     if (n <= 15) {
                         adj_Matrix.resize(n, vector<int>(n, DEFAULT_VAL));
                         // calc distances and fill the matrix
@@ -149,13 +158,21 @@ void drawing_board(bool mode) {
                             }
                         }
                         // do the calculation
-                        held_karp(n, 1);
+                        total_tour = held_karp(n, 1);
                         // draw the path
                         for (int k = 0; k < path_indices.size(); ++k) {
                             for (int i = 0; i < path_indices[k].size() - 1; ++i) {
                                 draw_line(colormap, crimson, color, path_indices[k][i], path_indices[k][i + 1]);
                             }
                         }
+
+                        total_tour += dist(coordinates[path_indices[0][0]].first, coordinates[path_indices[0][0]].second,
+                                           coordinates[path_indices[0][1]].first, coordinates[path_indices[0][1]].second);
+                        total_tour += dist(coordinates[path_indices[0].size()].first, coordinates[path_indices[0].size()].second,
+                                           coordinates[path_indices[0].size() - 1].first, coordinates[path_indices[0].size() - 1].second);
+
+                        cout << "Total tour: " << total_tour << endl;
+
                         display_result = false;
                     } else {
                         // first sort them
@@ -166,7 +183,6 @@ void drawing_board(bool mode) {
                         int div = k;
                         int end = 0;
                         unsigned long points_size = 0;
-                        int total_tour = 0;
                         int g = (dif == 0) ? k : k + 1;
 
                         for (int i = 0; i < g; ++i) {
@@ -193,6 +209,13 @@ void drawing_board(bool mode) {
                             }
                             // do the calculation
                             total_tour += held_karp(points_size, i + 1);
+
+                            // this is to compensate for manually added start and end point.
+                            total_tour += dist(points_slice[path_indices[i][0]].first, points_slice[path_indices[i][0]].second,
+                                               points_slice[path_indices[i][1]].first, points_slice[path_indices[i][1]].second);
+                            total_tour += dist(points_slice[path_indices[i].size()].first, points_slice[path_indices[i].size()].second,
+                                               points_slice[path_indices[i].size() - 1].first, points_slice[path_indices[i].size() - 1].second);
+
                             // update
                             points.push_back(points_slice);
                             // clear
@@ -200,6 +223,7 @@ void drawing_board(bool mode) {
                             adj_Matrix.clear();
                         }
                         // update total
+
                         total_tour += connect_slices();
 
                         cout << "Total tour: " << total_tour << " (includes new connecting edges)" << endl;
@@ -366,15 +390,12 @@ int held_karp(unsigned long n, int group) {
     path.push_back(0);
     path.push_front(0);
 
-    path.reverse(); // doesn't really matter.
-
     vector<int> path_slice;
     for(std::list<int>::iterator list_iter = path.begin();
         list_iter != path.end(); list_iter++) {
         path_slice.push_back(*list_iter);
     }
 
-    cout << "Total length of the tour #" << group << ": "  << opt << endl;
     path_indices.push_back(path_slice);
 
     // clear containers
@@ -447,6 +468,9 @@ int connect_slices() {
             }
         }
         connecting_indices.push_back(make_pair(pi, qj));
+        // minus edges that will be cut.
+        total -= dist(points[g][pi].first, points[g][pi].second, points[g][pi + 1].first, points[g][pi + 1].second);
+        total -= dist(points[g][qj].first, points[g][qj].second, points[g][qj + 1].first, points[g][qj + 1].second);
         total += overall_min_distance;
     }
     return total;
@@ -522,7 +546,7 @@ void close_x() {
     XFreeGC(dis, gc);
     XDestroyWindow(dis,win);
     XCloseDisplay(dis);
-    cout << "Program was terminated successfully";
+    cout << "Program was terminated successfully\n";
     exit(1);
 };
 
