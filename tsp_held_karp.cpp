@@ -60,8 +60,7 @@ int main(int argc, char *argv[]) {
     }
 }
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
+// new methods
 void drawing_board(bool mode) {
     // the XEvent declaration
     XEvent event;
@@ -307,8 +306,6 @@ void drawing_board(bool mode) {
         }
     }
 }
-#pragma clang diagnostic pop
-
 int held_karp(unsigned long n, int group) {
     map<pair<int, int>, pair<int, int> > map_container;
     // then do this
@@ -405,7 +402,6 @@ int held_karp(unsigned long n, int group) {
     list_of_pairs_result.clear();
     return opt;
 }
-
 vector<vector<int> > gen_combinations(int n, int r) {
     int count = 0;
     vector<vector<int> > container;
@@ -428,15 +424,12 @@ vector<vector<int> > gen_combinations(int n, int r) {
     } while (prev_permutation(v.begin(), v.end()));
     return container;
 }
-
 int dist(int x1, int y1, int x2, int y2) {
     return (int) sqrt(pow(x2 - x1, 2.0f) + pow(y2 - y1, 2.0f));
 }
-
 bool compare_pair(pair<int, int>& i, pair<int, int>& j) {
     return i.first < j.first;
 }
-
 int connect_slices() {
     // finds optimal connections between the groups
     int total = 0;
@@ -475,21 +468,18 @@ int connect_slices() {
     }
     return total;
 }
-
 void draw_point(Colormap colormap, char color_name[], XColor &color, int index) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
     XSetForeground(dis, gc, color.pixel);
     XFillArc(dis, win, gc, coordinates[index].first-(15/2), coordinates[index].second-(15/2), 8, 8, 0, 360*64);
 }
-
 void draw_point(Colormap colormap, char color_name[], XColor &color, int x, int y) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
     XSetForeground(dis, gc, color.pixel);
     XFillArc(dis, win, gc, x-(15/2), y-(15/2), 8, 8, 0, 360*64);
 }
-
 void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j, vector<pair<int, int> > current_points) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
@@ -497,14 +487,12 @@ void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j
     XDrawLine(dis,win,gc,current_points[i].first,current_points[i].second,
               current_points[j].first,current_points[j].second);
 }
-
 void draw_line(Colormap colormap, char color_name[], XColor &color, int ix, int iy, int jx, int jy) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
     XSetForeground(dis, gc, color.pixel);
     XDrawLine(dis,win,gc,ix,iy,jx,jy);
 }
-
 void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j) {
     XParseColor(dis, colormap, color_name, &color);
     XAllocColor(dis, colormap, &color);
@@ -512,6 +500,7 @@ void draw_line(Colormap colormap, char color_name[], XColor &color, int i, int j
     XDrawLine(dis,win,gc,coordinates[i].first,coordinates[i].second,coordinates[j].first,coordinates[j].second);
 }
 
+// X routines
 void init_x() {
     // get the colors black and white (see section for details)
     unsigned long black,white;
@@ -534,7 +523,6 @@ void init_x() {
     XClearWindow(dis, win);
     XMapRaised(dis, win);
 };
-
 void close_x() {
     // clear();
     coordinates.clear();
@@ -549,7 +537,6 @@ void close_x() {
     cout << "Program was terminated successfully\n";
     exit(1);
 };
-
 void redraw() {
     XClearWindow(dis, win);
 }
