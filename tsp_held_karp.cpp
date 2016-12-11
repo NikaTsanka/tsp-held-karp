@@ -229,7 +229,7 @@ void drawing_board(bool mode) {
                         }
                         // update total
 
-                        total_tour += connect_slices(total_tour);
+                        total_tour = connect_slices(total_tour);
 
                         cout << "Total tour: " << total_tour << " (includes new connecting edges)" << endl;
                         // draw
@@ -451,6 +451,9 @@ bool check_intersection(int p1x, int p1y, int q1x, int q1y, int p2x, int p2y, in
     }
 }
 int connect_slices(int total) {
+
+    int temp_total;// = total;
+
     // init colors
     XColor color;
     Colormap colormap;
@@ -466,13 +469,15 @@ int connect_slices(int total) {
         int qj = 0;
         int qj1 = 0;
 
-        int overall_min_distance_i = 99999, overall_min_distance_j = 99999;
-        int min_distance_i = 99999, min_distance_j = 99999;
+
+        int overall_min_distance = 99999;//, overall_min_distance_j = 99999;
+        int min_distance = 99999;//, min_distance_j = 99999;
         for (int i = 0; i < path_indices[g].size() - 1; ++i) {
             // edge
             int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
             int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
             for (int j = 0; j < path_indices[g + 1].size() - 1; ++j) {
+                temp_total = total;
                 // edge
                 int qjx =  points[g + 1][path_indices[g + 1][j]].first,     qjy = points[g + 1][path_indices[g + 1][j]].second;
                 int qj1x = points[g + 1][path_indices[g + 1][j + 1]].first, qj1y = points[g + 1][path_indices[g + 1][j + 1]].second;
@@ -483,34 +488,69 @@ int connect_slices(int total) {
                 int dist_pi_qj1 = dist(pix, piy, qj1x, qj1y);
                 int dist_pi1_qj = dist(pi1x, pi1y, qjx, qjy);
 
-
-                int distance_i = dist_pi_qj + dist_pi1_qj1; // non-crossing
-                int distance_j = dist_pi_qj1 + dist_pi1_qj; // crossing
-
                 // minus cut edges
-                total -= dist(pix, piy, pi1x, pi1y);
-                total -= dist(qjx, qjy, qj1x, qj1y);
+                temp_total -= dist(pix, piy, pi1x, pi1y);
+                temp_total -= dist(qjx, qjy, qj1x, qj1y);
 
-                if (distance_i < min_distance_i) {
-                    min_distance_i = distance_i;
-                    pi = i;
-                    qj = j;
-                }
-                if (distance_j < min_distance_j) {
-                    min_distance_j = distance_j;
-                    pi1 = i;
-                    qj1 = j;
+                // add new edges that don't cross each other.
+                if (check_intersection(pix, piy, qjx, qjy, pi1x, pi1y, qj1x, qj1y)) {
+                    // if they cross try other
+                    int distance_j = dist_pi_qj1 + dist_pi1_qj;
+                    temp_total += distance_j;
+                    if (temp_total < min_distance) {
+                        min_distance = temp_total;
+                        pi = i;
+                        qj = j;
+                    }
+                } else {
+                    int distance_i = dist_pi_qj + dist_pi1_qj1;
+                    temp_total += distance_i;
+                    if (temp_total < min_distance) {
+                        min_distance = temp_total;
+                        pi = i;
+                        qj = j;
+                    }
                 }
             }
-            if (min_distance_i < overall_min_distance_i) {
-                overall_min_distance_i = min_distance_i;
+            if (min_distance < overall_min_distance) {
+                overall_min_distance = min_distance;
+                // remember indexes of the smallest
+                pi1 = pi;
+                qj1 = qj;
             }
-            if (min_distance_j < overall_min_distance_j) {
+
+            /*if (min_distance_j < overall_min_distance_j) {
                 overall_min_distance_j = min_distance_j;
-            }
+            }*/
         }
 
-        if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
+        if (check_intersection(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                               points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second,
+                               points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
+                               points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second)) {
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
+                       points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
+            // edge 2
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
+
+            //connecting_indices.push_back(make_pair(pi1, qj1));
+
+
+        } else {
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                      points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
+            // edge 2
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
+                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
+        }
+
+
+
+        connecting_indices.push_back(make_pair(pi1, qj1));
+        total = overall_min_distance;
+
+        /*if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
                   points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second,
                                points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
                   points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second)) {
@@ -578,7 +618,7 @@ int connect_slices(int total) {
                               points[g][path_indices[g][qj + 1]].first, points[g][path_indices[g][qj + 1]].second);
                 total += overall_min_distance_i;
             }
-        }
+        }*/
     }
     return total;
 }
