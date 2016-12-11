@@ -215,12 +215,6 @@ void drawing_board(bool mode) {
                             // do the calculation
                             total_tour += held_karp(points_size);
 
-                            // this is to compensate for manually added start and end point.
-                            total_tour += dist(points_slice[path_indices[i][0]].first, points_slice[path_indices[i][0]].second,
-                                               points_slice[path_indices[i][1]].first, points_slice[path_indices[i][1]].second);
-                            total_tour += dist(points_slice[path_indices[i].size()].first, points_slice[path_indices[i].size()].second,
-                                               points_slice[path_indices[i].size() - 1].first, points_slice[path_indices[i].size() - 1].second);
-
                             // update
                             points.push_back(points_slice);
                             // clear
@@ -451,7 +445,6 @@ bool check_intersection(int p1x, int p1y, int q1x, int q1y, int p2x, int p2y, in
     }
 }
 int connect_slices(int total) {
-
     int temp_total;// = total;
 
     // init colors
