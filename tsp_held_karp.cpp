@@ -13,6 +13,9 @@
 using namespace std;
 
 // global vars
+struct Dist_Pair {
+    int x, y;
+};
 vector<pair<int, int> > coordinates;
 vector<vector<int> > adj_Matrix;
 vector<vector<int> > path_indices;
@@ -33,11 +36,14 @@ void redraw();
 
 // new methods
 void drawing_board(bool);
-int held_karp(unsigned long, int);
+int held_karp(unsigned long);
 vector<vector<int> > gen_combinations(int, int);
 int dist(int, int, int, int);
-bool compare_pair(pair<int, int> &, pair<int, int> &);
-int connect_slices();
+bool compare_pair(const pair<int, int> &, const pair<int, int> &);
+bool compare_dist(const Dist_Pair &, const Dist_Pair &);
+bool check_intersection(int, int, int, int, int, int, int, int);
+double det(int, int, int, int, int, int);
+int connect_slices(int);
 void draw_point(Colormap, char [], XColor &, int);
 void draw_point(Colormap, char [], XColor &, int, int);
 void draw_line(Colormap, char [], XColor &, int, int, vector<pair<int, int> >);
@@ -157,7 +163,7 @@ void drawing_board(bool mode) {
                             }
                         }
                         // do the calculation
-                        total_tour = held_karp(n, 1);
+                        total_tour = held_karp(n);
                         // draw the path
                         for (int k = 0; k < path_indices.size(); ++k) {
                             for (int i = 0; i < path_indices[k].size() - 1; ++i) {
@@ -207,7 +213,7 @@ void drawing_board(bool mode) {
                                 }
                             }
                             // do the calculation
-                            total_tour += held_karp(points_size, i + 1);
+                            total_tour += held_karp(points_size);
 
                             // this is to compensate for manually added start and end point.
                             total_tour += dist(points_slice[path_indices[i][0]].first, points_slice[path_indices[i][0]].second,
@@ -223,7 +229,7 @@ void drawing_board(bool mode) {
                         }
                         // update total
 
-                        total_tour += connect_slices();
+                        total_tour += connect_slices(total_tour);
 
                         cout << "Total tour: " << total_tour << " (includes new connecting edges)" << endl;
                         // draw
@@ -236,21 +242,6 @@ void drawing_board(bool mode) {
                                                   points[m]);
                                     }
                                     if (i + 1 == connecting_indices[m].first) {
-                                        for (int j = 0; j < path_indices[m + 1].size(); ++j) {
-                                            if (j == connecting_indices[m].second) {
-                                                draw_line(colormap, blue, color,
-                                                          points[m][path_indices[m][i + 1]].first,
-                                                          points[m][path_indices[m][i + 1]].second,
-                                                          points[m + 1][path_indices[m + 1][j]].first,
-                                                          points[m + 1][path_indices[m + 1][j]].second);
-
-                                                draw_line(colormap, blue, color,
-                                                          points[m][path_indices[m][i + 2]].first,
-                                                          points[m][path_indices[m][i + 2]].second,
-                                                          points[m + 1][path_indices[m + 1][j + 1]].first,
-                                                          points[m + 1][path_indices[m + 1][j + 1]].second);
-                                            }
-                                        }
                                         // jump
                                         i+=1;
                                     }
@@ -265,22 +256,6 @@ void drawing_board(bool mode) {
                                             i+=1;
                                         }
                                         if (i + 1 == connecting_indices[m].first) {
-                                            //continue;
-                                            for (int j = 0; j < path_indices[m + 1].size(); ++j) {
-                                                if (j == connecting_indices[m].second) {
-                                                    draw_line(colormap, blue, color,
-                                                              points[m][path_indices[m][i + 1]].first,
-                                                              points[m][path_indices[m][i + 1]].second,
-                                                              points[m + 1][path_indices[m + 1][j]].first,
-                                                              points[m + 1][path_indices[m + 1][j]].second);
-
-                                                    draw_line(colormap, blue, color,
-                                                              points[m][path_indices[m][i + 2]].first,
-                                                              points[m][path_indices[m][i + 2]].second,
-                                                              points[m + 1][path_indices[m + 1][j + 1]].first,
-                                                              points[m + 1][path_indices[m + 1][j + 1]].second);
-                                                }
-                                            }
                                             i+=1;
                                         }
                                     }
@@ -306,7 +281,7 @@ void drawing_board(bool mode) {
         }
     }
 }
-int held_karp(unsigned long n, int group) {
+int held_karp(unsigned long n) {
     map<pair<int, int>, pair<int, int> > map_container;
     // then do this
     for (int k = 1; k < n; ++k) {
@@ -327,7 +302,7 @@ int held_karp(unsigned long n, int group) {
             for (int k = 0; k < combinations[j].size(); ++k) {
                 int prev = bits & ~(1 << combinations[j][k]);
 
-                list<pair<int, int> > integer_list;
+                list<Dist_Pair> integer_list;
                 for (int m = 0; m < combinations[j].size(); ++m) {
                     if (combinations[j][m] == 0 || combinations[j][m] == combinations[j][k]) {
                         continue;
@@ -340,11 +315,13 @@ int held_karp(unsigned long n, int group) {
                         // use itr to read the values
                         list_i = it->second.first;
                     }
-                    integer_list.push_back(make_pair(list_i + adj_Matrix[combinations[j][m]][combinations[j][k]], combinations[j][m]));
+                    Dist_Pair p;
+                    p.x = list_i + adj_Matrix[combinations[j][m]][combinations[j][k]], p.y = combinations[j][m];
+                    integer_list.push_back(p);
                 }
                 // min
-                list<pair<int, int> >::iterator it = min_element(integer_list.begin(), integer_list.end());
-                map_container.insert(make_pair(make_pair(bits, combinations[j][k]), make_pair((*it).first, (*it).second) ));
+                list<Dist_Pair>::iterator it = min_element(integer_list.begin(), integer_list.end(), compare_dist);
+                map_container.insert(make_pair(make_pair(bits, combinations[j][k]), make_pair((*it).x, (*it).y)));
                 integer_list.clear();
             }
         }
@@ -353,7 +330,7 @@ int held_karp(unsigned long n, int group) {
     int bits = (int)(pow(2, (double)n) - 1) - 1;
 
     // calculate
-    list<pair<int, int> > list_of_pairs_result;
+    list<Dist_Pair> list_of_pairs_result;
     for (int k = 1; k < n; ++k) {
         int list_i = 0;
         map<pair<int, int>, pair<int, int> >::const_iterator it;
@@ -362,10 +339,12 @@ int held_karp(unsigned long n, int group) {
             // use itr to read the values
             list_i = it->second.first;
         }
-        list_of_pairs_result.push_back(make_pair(list_i + adj_Matrix[k][0], k));
+        Dist_Pair p;
+        p.x = list_i + adj_Matrix[k][0], p.y = k;
+        list_of_pairs_result.push_back(p);
     }
-    list<pair<int, int> >::iterator it = min_element(list_of_pairs_result.begin(), list_of_pairs_result.end());
-    int opt = (*it).first, parent = (*it).second;
+    list<Dist_Pair>::iterator it = min_element(list_of_pairs_result.begin(), list_of_pairs_result.end(), compare_dist);
+    int opt = (*it).x, parent = (*it).y;
 
     // backtrack to find full path
     list<int> path;
@@ -427,44 +406,179 @@ vector<vector<int> > gen_combinations(int n, int r) {
 int dist(int x1, int y1, int x2, int y2) {
     return (int) sqrt(pow(x2 - x1, 2.0f) + pow(y2 - y1, 2.0f));
 }
-bool compare_pair(pair<int, int>& i, pair<int, int>& j) {
+bool compare_pair(const pair<int, int>& i, const pair<int, int>& j) {
     return i.first < j.first;
 }
-int connect_slices() {
+bool compare_dist(const Dist_Pair &lhs, const Dist_Pair &rhs) {
+    return lhs.x < rhs.x;
+}
+double det(int px, int py, int qx, int qy, int rx, int ry) {
+    return (px*qy)+(py*rx)+(qx*ry)-(qy*rx)-(px*ry)-(py*qx);
+};
+bool check_intersection(int p1x, int p1y, int q1x, int q1y, int p2x, int p2y, int q2x, int q2y) {
+    /*Determinant formula
+      If (((det (p, q , r) * det(p q s) ) < 0)
+      And ((Det (s r p) * det ( s r q))< 0)
+      Then the edge pq intersects sr
+     */
+    double pqr = 0, pqs = 0, srp = 0, srq = 0;
+    // p1 = p, q1 = q, r = p2, s = q2
+
+    pqr = det(p1x, p1y, // p
+              q1x, q1y, // q
+              p2x, p2y); // r
+
+    pqs = det(p1x, p1y, // p
+              q1x, q1y, // q
+              q2x, q2y); // s
+
+    srp = det(q2x, q2y, //s
+              p2x, p2y, //r
+              p1x, p1y); // p
+
+    srq = det(q2x, q2y, //s
+              p2x, p2y, //r
+              q1x, q1y); //q
+
+    if (((pqr * pqs) < 0) && ((srp * srq) < 0)) {
+        //cout << "Intersection\n";
+        //cout << pqr << " * " << pqs << " " << srp << " * " << srq << endl;
+        return true;
+    } else {
+        //cout << "Nope\n";
+        //cout << pqr << " * " << pqs << " " << srp << " * " << srq << endl;
+        return false;
+    }
+}
+int connect_slices(int total) {
+    // init colors
+    XColor color;
+    Colormap colormap;
+    char blue[] = "#0000FF";
+    colormap = DefaultColormap(dis, 0);
+    int flip = false;
     // finds optimal connections between the groups
-    int total = 0;
+    //int total = 0;
     for (int g = 0; g < path_indices.size() - 1; ++g) { // number of groups
         // pick an edge from group i
         int pi = 0;
+        int pi1 = 0;
         int qj = 0;
+        int qj1 = 0;
 
-        int overall_min_distance = 99999;
-        int min_distance = 99999;
+        int overall_min_distance_i = 99999, overall_min_distance_j = 99999;
+        int min_distance_i = 99999, min_distance_j = 99999;
         for (int i = 0; i < path_indices[g].size() - 1; ++i) {
+            // edge
             int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
             int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
             for (int j = 0; j < path_indices[g + 1].size() - 1; ++j) {
+                // edge
                 int qjx =  points[g + 1][path_indices[g + 1][j]].first,     qjy = points[g + 1][path_indices[g + 1][j]].second;
                 int qj1x = points[g + 1][path_indices[g + 1][j + 1]].first, qj1y = points[g + 1][path_indices[g + 1][j + 1]].second;
+
                 int dist_pi_qj = dist(pix, piy, qjx, qjy);
                 int dist_pi1_qj1 = dist(pi1x, pi1y, qj1x, qj1y);
-                int distance =  dist_pi_qj + dist_pi1_qj1;
 
-                if (distance < min_distance) {
-                    min_distance = distance;
+                int dist_pi_qj1 = dist(pix, piy, qj1x, qj1y);
+                int dist_pi1_qj = dist(pi1x, pi1y, qjx, qjy);
+
+
+                int distance_i = dist_pi_qj + dist_pi1_qj1; // non-crossing
+                int distance_j = dist_pi_qj1 + dist_pi1_qj; // crossing
+
+                // minus cut edges
+                total -= dist(pix, piy, pi1x, pi1y);
+                total -= dist(qjx, qjy, qj1x, qj1y);
+
+                if (distance_i < min_distance_i) {
+                    min_distance_i = distance_i;
                     pi = i;
                     qj = j;
                 }
+                if (distance_j < min_distance_j) {
+                    min_distance_j = distance_j;
+                    pi1 = i;
+                    qj1 = j;
+                }
             }
-            if (min_distance < overall_min_distance) {
-                overall_min_distance = min_distance;
+            if (min_distance_i < overall_min_distance_i) {
+                overall_min_distance_i = min_distance_i;
+            }
+            if (min_distance_j < overall_min_distance_j) {
+                overall_min_distance_j = min_distance_j;
             }
         }
-        connecting_indices.push_back(make_pair(pi, qj));
-        // minus edges that will be cut.
-        total -= dist(points[g][pi].first, points[g][pi].second, points[g][pi + 1].first, points[g][pi + 1].second);
-        total -= dist(points[g][qj].first, points[g][qj].second, points[g][qj + 1].first, points[g][qj + 1].second);
-        total += overall_min_distance;
+
+        if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
+                  points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second,
+                               points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
+                  points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second)) {
+
+        //cout << "Yes\n";
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
+
+            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
+                      points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
+
+            connecting_indices.push_back(make_pair(pi1, qj1));
+            total -= dist(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                          points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second);
+            total -= dist(points[g][path_indices[g][qj1]].first, points[g][path_indices[g][qj1]].second,
+                          points[g][path_indices[g][qj1 + 1]].first, points[g][path_indices[g][qj1 + 1]].second);
+            total += overall_min_distance_j;
+
+        } else {
+            // now make sure they don't cross any other edge. if they then flip
+            for (int f = 0; f < path_indices.size() - 1; ++f) {
+                for (int i = 0; i < path_indices[f].size() - 1; ++i) {
+                    int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
+                    int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
+
+                    if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
+                                           points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second,
+                                           pix, piy,
+                                           pi1x, pi1y) ||
+                            check_intersection(points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
+                                               points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second,
+                                               pix, piy,
+                                               pi1x, pi1y)) {
+                        //cout << "Yes\n";
+                        flip = true;
+                    }
+
+                }
+            }
+
+            if (flip) {
+                draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                          points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
+                draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
+                          points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
+
+                connecting_indices.push_back(make_pair(pi1, qj1));
+                total -= dist(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
+                              points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second);
+                total -= dist(points[g][path_indices[g][qj1]].first, points[g][path_indices[g][qj1]].second,
+                              points[g][path_indices[g][qj1 + 1]].first, points[g][path_indices[g][qj1 + 1]].second);
+                total += overall_min_distance_j;
+            } else {
+                // edge 1
+                draw_line(colormap, blue, color, points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
+                          points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second);
+                // edge 2
+                draw_line(colormap, blue, color, points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
+                          points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second);
+
+                connecting_indices.push_back(make_pair(pi, qj));
+                total -= dist(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
+                              points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second);
+                total -= dist(points[g][path_indices[g][qj]].first, points[g][path_indices[g][qj]].second,
+                              points[g][path_indices[g][qj + 1]].first, points[g][path_indices[g][qj + 1]].second);
+                total += overall_min_distance_i;
+            }
+        }
     }
     return total;
 }
