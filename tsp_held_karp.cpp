@@ -93,6 +93,8 @@ void drawing_board(bool mode) {
 
     // start the main loop
     cout << "You can use \'q\' or \'Q\' to terminate the program at any time. :)\n";
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
     while(1) {
         /* get the next event and stuff it into our event variable.
            Note:  only events we set the mask for are detected!
@@ -274,6 +276,7 @@ void drawing_board(bool mode) {
                 break;
         }
     }
+#pragma clang diagnostic pop
 }
 int held_karp(unsigned long n) {
     map<pair<int, int>, pair<int, int> > map_container;
@@ -445,27 +448,29 @@ bool check_intersection(int p1x, int p1y, int q1x, int q1y, int p2x, int p2y, in
     }
 }
 int connect_slices(int total) {
-    int temp_total;// = total;
-
+    int temp_total;
     // init colors
     XColor color;
     Colormap colormap;
     char blue[] = "#0000FF";
     colormap = DefaultColormap(dis, 0);
-    int flip = false;
+    int skip_index = 99999;
+    int shorter_dist = false;
     // finds optimal connections between the groups
     //int total = 0;
     for (int g = 0; g < path_indices.size() - 1; ++g) { // number of groups
         // pick an edge from group i
         int pi = 0;
-        int pi1 = 0;
+        int min_pi1 = 0;
         int qj = 0;
-        int qj1 = 0;
-
+        int min_qj1 = 0;
 
         int overall_min_distance = 99999;//, overall_min_distance_j = 99999;
         int min_distance = 99999;//, min_distance_j = 99999;
         for (int i = 0; i < path_indices[g].size() - 1; ++i) {
+            if (i == skip_index) {
+                continue;
+            }
             // edge
             int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
             int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
@@ -485,7 +490,7 @@ int connect_slices(int total) {
                 temp_total -= dist(pix, piy, pi1x, pi1y);
                 temp_total -= dist(qjx, qjy, qj1x, qj1y);
 
-                // add new edges that don't cross each other.
+                // add the new edges that don't cross each other.
                 if (check_intersection(pix, piy, qjx, qjy, pi1x, pi1y, qj1x, qj1y)) {
                     // if they cross try other
                     int distance_j = dist_pi_qj1 + dist_pi1_qj;
@@ -496,122 +501,68 @@ int connect_slices(int total) {
                         qj = j;
                     }
                 } else {
+                    // check if the other way and if it also doesn't cross
+                    // pick the shortest
+                    int distance_j_temp = 99999;
+                    if (!check_intersection(pix, piy, qj1x, qj1y, pi1x, pi1y, qjx, qjy)) {
+                        distance_j_temp = dist_pi_qj1 + dist_pi1_qj;
+                    }
                     int distance_i = dist_pi_qj + dist_pi1_qj1;
-                    temp_total += distance_i;
-                    if (temp_total < min_distance) {
-                        min_distance = temp_total;
-                        pi = i;
-                        qj = j;
+
+                    if (distance_j_temp < distance_i) {
+                        temp_total += distance_j_temp;
+                        if (temp_total < min_distance) {
+                            min_distance = temp_total;
+                            pi = i;
+                            qj = j;
+                            shorter_dist = true;
+                        }
+                    } else {
+                        temp_total += distance_i;
+                        if (temp_total < min_distance) {
+                            min_distance = temp_total;
+                            pi = i;
+                            qj = j;
+                            shorter_dist = false;
+                        }
                     }
                 }
             }
             if (min_distance < overall_min_distance) {
                 overall_min_distance = min_distance;
                 // remember indexes of the smallest
-                pi1 = pi;
-                qj1 = qj;
+                min_pi1 = pi;
+                min_qj1 = qj;
             }
-
-            /*if (min_distance_j < overall_min_distance_j) {
-                overall_min_distance_j = min_distance_j;
-            }*/
         }
+        if (check_intersection(points[g][path_indices[g][min_pi1]].first, points[g][path_indices[g][min_pi1]].second,
+                               points[g + 1][path_indices[g + 1][min_qj1]].first, points[g + 1][path_indices[g + 1][min_qj1]].second,
+                               points[g][path_indices[g][min_pi1 + 1]].first, points[g][path_indices[g][min_pi1 + 1]].second,
+                               points[g + 1][path_indices[g + 1][min_qj1 + 1]].first, points[g + 1][path_indices[g + 1][min_qj1 + 1]].second)) {
 
-        if (check_intersection(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                               points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second,
-                               points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
-                               points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second)) {
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
-                       points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
-            // edge 2
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
-
-            //connecting_indices.push_back(make_pair(pi1, qj1));
-
-
+            draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1 + 1]].first, points[g][path_indices[g][min_pi1 + 1]].second,
+                       points[g + 1][path_indices[g + 1][min_qj1]].first, points[g + 1][path_indices[g + 1][min_qj1]].second);
+            draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1]].first, points[g][path_indices[g][min_pi1]].second,
+                      points[g + 1][path_indices[g + 1][min_qj1 + 1]].first, points[g + 1][path_indices[g + 1][min_qj1 + 1]].second);
+            XFlush(dis);
         } else {
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                      points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
-            // edge 2
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
-                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
-        }
-
-
-
-        connecting_indices.push_back(make_pair(pi1, qj1));
-        total = overall_min_distance;
-
-        /*if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
-                  points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second,
-                               points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
-                  points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second)) {
-
-        //cout << "Yes\n";
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                      points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
-
-            draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
-                      points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
-
-            connecting_indices.push_back(make_pair(pi1, qj1));
-            total -= dist(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                          points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second);
-            total -= dist(points[g][path_indices[g][qj1]].first, points[g][path_indices[g][qj1]].second,
-                          points[g][path_indices[g][qj1 + 1]].first, points[g][path_indices[g][qj1 + 1]].second);
-            total += overall_min_distance_j;
-
-        } else {
-            // now make sure they don't cross any other edge. if they then flip
-            for (int f = 0; f < path_indices.size() - 1; ++f) {
-                for (int i = 0; i < path_indices[f].size() - 1; ++i) {
-                    int pix =  points[g][path_indices[g][i]].first,     piy = points[g][path_indices[g][i]].second;
-                    int pi1x = points[g][path_indices[g][i + 1]].first, pi1y = points[g][path_indices[g][i + 1]].second;
-
-                    if (check_intersection(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
-                                           points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second,
-                                           pix, piy,
-                                           pi1x, pi1y) ||
-                            check_intersection(points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
-                                               points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second,
-                                               pix, piy,
-                                               pi1x, pi1y)) {
-                        //cout << "Yes\n";
-                        flip = true;
-                    }
-
-                }
-            }
-
-            if (flip) {
-                draw_line(colormap, blue, color, points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                          points[g + 1][path_indices[g + 1][qj1 + 1]].first, points[g + 1][path_indices[g + 1][qj1 + 1]].second);
-                draw_line(colormap, blue, color, points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second,
-                          points[g + 1][path_indices[g + 1][qj1]].first, points[g + 1][path_indices[g + 1][qj1]].second);
-
-                connecting_indices.push_back(make_pair(pi1, qj1));
-                total -= dist(points[g][path_indices[g][pi1]].first, points[g][path_indices[g][pi1]].second,
-                              points[g][path_indices[g][pi1 + 1]].first, points[g][path_indices[g][pi1 + 1]].second);
-                total -= dist(points[g][path_indices[g][qj1]].first, points[g][path_indices[g][qj1]].second,
-                              points[g][path_indices[g][qj1 + 1]].first, points[g][path_indices[g][qj1 + 1]].second);
-                total += overall_min_distance_j;
+            if (shorter_dist) {
+                draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1 + 1]].first, points[g][path_indices[g][min_pi1 + 1]].second,
+                          points[g + 1][path_indices[g + 1][min_qj1]].first, points[g + 1][path_indices[g + 1][min_qj1]].second);
+                draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1]].first, points[g][path_indices[g][min_pi1]].second,
+                          points[g + 1][path_indices[g + 1][min_qj1 + 1]].first, points[g + 1][path_indices[g + 1][min_qj1 + 1]].second);
+                XFlush(dis);
             } else {
-                // edge 1
-                draw_line(colormap, blue, color, points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
-                          points[g + 1][path_indices[g + 1][qj]].first, points[g + 1][path_indices[g + 1][qj]].second);
-                // edge 2
-                draw_line(colormap, blue, color, points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second,
-                          points[g + 1][path_indices[g + 1][qj + 1]].first, points[g + 1][path_indices[g + 1][qj + 1]].second);
-
-                connecting_indices.push_back(make_pair(pi, qj));
-                total -= dist(points[g][path_indices[g][pi]].first, points[g][path_indices[g][pi]].second,
-                              points[g][path_indices[g][pi + 1]].first, points[g][path_indices[g][pi + 1]].second);
-                total -= dist(points[g][path_indices[g][qj]].first, points[g][path_indices[g][qj]].second,
-                              points[g][path_indices[g][qj + 1]].first, points[g][path_indices[g][qj + 1]].second);
-                total += overall_min_distance_i;
+                draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1]].first, points[g][path_indices[g][min_pi1]].second,
+                          points[g + 1][path_indices[g + 1][min_qj1]].first, points[g + 1][path_indices[g + 1][min_qj1]].second);
+                draw_line(colormap, blue, color, points[g][path_indices[g][min_pi1 + 1]].first, points[g][path_indices[g][min_pi1 + 1]].second,
+                          points[g + 1][path_indices[g + 1][min_qj1 + 1]].first, points[g + 1][path_indices[g + 1][min_qj1 + 1]].second);
+                XFlush(dis);
             }
-        }*/
+        }
+        skip_index = min_qj1;
+        connecting_indices.push_back(make_pair(min_pi1, min_qj1));
+        total = overall_min_distance;
     }
     return total;
 }
