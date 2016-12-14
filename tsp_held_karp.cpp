@@ -1,3 +1,9 @@
+/*
+ * CSC I0600 - Fundamental Algorithms - Fall Semester 2016
+ * Homework Project 3
+ * Nika Tsankashvili
+ * */
+
 #include <iostream>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -13,7 +19,7 @@
 using namespace std;
 
 // global vars
-struct Dist_Pair {
+struct Points {
     int x, y;
 };
 vector<pair<int, int> > coordinates;
@@ -32,7 +38,6 @@ GC gc;
 // here are our X routines declared
 void init_x();
 void close_x();
-void redraw();
 
 // new methods
 void drawing_board(bool);
@@ -40,7 +45,7 @@ int held_karp(unsigned long);
 vector<vector<int> > gen_combinations(int, int);
 int dist(int, int, int, int);
 bool compare_pair(const pair<int, int> &, const pair<int, int> &);
-bool compare_dist(const Dist_Pair &, const Dist_Pair &);
+bool compare_dist(const Points &, const Points &);
 bool check_intersection(int, int, int, int, int, int, int, int);
 double det(int, int, int, int, int, int);
 int connect_slices(int);
@@ -82,7 +87,6 @@ void drawing_board(bool mode) {
     char color_black[] = "#000000";
     char crimson[] = "#DC143C";
     char navy_blue[] = "#000080";
-    char blue[] = "#0000FF";
     colormap = DefaultColormap(dis, 0);
 
     // vars
@@ -104,8 +108,7 @@ void drawing_board(bool mode) {
             case Expose:
                 if (event.type == Expose && event.xexpose.count == 0) {
                     // the window was exposed redraw it
-                    redraw();
-                    // now put the servers on the screen
+                    //redraw();
                     if (mode) {
                         for (int i = 0; i < coordinates.size(); ++i) {
                             draw_point(colormap, color_black, color, i);
@@ -299,7 +302,7 @@ int held_karp(unsigned long n) {
             for (int k = 0; k < combinations[j].size(); ++k) {
                 int prev = bits & ~(1 << combinations[j][k]);
 
-                list<Dist_Pair> integer_list;
+                list<Points> integer_list;
                 for (int m = 0; m < combinations[j].size(); ++m) {
                     if (combinations[j][m] == 0 || combinations[j][m] == combinations[j][k]) {
                         continue;
@@ -312,12 +315,12 @@ int held_karp(unsigned long n) {
                         // use itr to read the values
                         list_i = it->second.first;
                     }
-                    Dist_Pair p;
+                    Points p;
                     p.x = list_i + adj_Matrix[combinations[j][m]][combinations[j][k]], p.y = combinations[j][m];
                     integer_list.push_back(p);
                 }
                 // min
-                list<Dist_Pair>::iterator it = min_element(integer_list.begin(), integer_list.end(), compare_dist);
+                list<Points>::iterator it = min_element(integer_list.begin(), integer_list.end(), compare_dist);
                 map_container.insert(make_pair(make_pair(bits, combinations[j][k]), make_pair((*it).x, (*it).y)));
                 integer_list.clear();
             }
@@ -327,7 +330,7 @@ int held_karp(unsigned long n) {
     int bits = (int)(pow(2, (double)n) - 1) - 1;
 
     // calculate
-    list<Dist_Pair> list_of_pairs_result;
+    list<Points> list_of_pairs_result;
     for (int k = 1; k < n; ++k) {
         int list_i = 0;
         map<pair<int, int>, pair<int, int> >::const_iterator it;
@@ -336,11 +339,11 @@ int held_karp(unsigned long n) {
             // use itr to read the values
             list_i = it->second.first;
         }
-        Dist_Pair p;
+        Points p;
         p.x = list_i + adj_Matrix[k][0], p.y = k;
         list_of_pairs_result.push_back(p);
     }
-    list<Dist_Pair>::iterator it = min_element(list_of_pairs_result.begin(), list_of_pairs_result.end(), compare_dist);
+    list<Points>::iterator it = min_element(list_of_pairs_result.begin(), list_of_pairs_result.end(), compare_dist);
     int opt = (*it).x, parent = (*it).y;
 
     // backtrack to find full path
@@ -406,7 +409,7 @@ int dist(int x1, int y1, int x2, int y2) {
 bool compare_pair(const pair<int, int>& i, const pair<int, int>& j) {
     return i.first < j.first;
 }
-bool compare_dist(const Dist_Pair &lhs, const Dist_Pair &rhs) {
+bool compare_dist(const Points &lhs, const Points &rhs) {
     return lhs.x < rhs.x;
 }
 double det(int px, int py, int qx, int qy, int rx, int ry) {
@@ -438,12 +441,8 @@ bool check_intersection(int p1x, int p1y, int q1x, int q1y, int p2x, int p2y, in
               q1x, q1y); //q
 
     if (((pqr * pqs) < 0) && ((srp * srq) < 0)) {
-        //cout << "Intersection\n";
-        //cout << pqr << " * " << pqs << " " << srp << " * " << srq << endl;
         return true;
     } else {
-        //cout << "Nope\n";
-        //cout << pqr << " * " << pqs << " " << srp << " * " << srq << endl;
         return false;
     }
 }
@@ -620,7 +619,7 @@ void init_x() {
 
     XClearWindow(dis, win);
     XMapRaised(dis, win);
-};
+}
 void close_x() {
     // clear();
     coordinates.clear();
@@ -634,7 +633,4 @@ void close_x() {
     XCloseDisplay(dis);
     cout << "Program was terminated successfully\n";
     exit(1);
-};
-void redraw() {
-    XClearWindow(dis, win);
 }
