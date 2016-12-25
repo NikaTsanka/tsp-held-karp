@@ -1,4 +1,4 @@
-The travelling salesman problem ([TSP](https://en.wikipedia.org/wiki/Travelling_salesman_problem)) GUI ([Xlib](https://en.wikipedia.org/wiki/Xlib)) simulation using the [Held–Karp algorithm](https://en.wikipedia.org/wiki/Held%E2%80%93Karp_algorithm) (dynamic programming)
+#### The travelling salesman problem ([TSP](https://en.wikipedia.org/wiki/Travelling_salesman_problem)) GUI ([Xlib](https://en.wikipedia.org/wiki/Xlib)) simulation using the [Held–Karp algorithm](https://en.wikipedia.org/wiki/Held%E2%80%93Karp_algorithm) (dynamic programming)
 
 Has two input modes:
 * Command-Line: Pass a .txt file containing integers 0 to 500
