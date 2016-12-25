@@ -1,9 +1,3 @@
-/*
- * CSC I0600 - Fundamental Algorithms - Fall Semester 2016
- * Homework Project 3
- * Nika Tsankashvili
- * */
-
 #include <iostream>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -29,13 +23,13 @@ vector<pair<int, int> > connecting_indices;
 vector<vector<pair<int, int> > > points;
 const int DEFAULT_VAL = 0;
 
-// here are our X variables
+// X variables
 Display *dis;
 int screen;
 Window win;
 GC gc;
 
-// here are our X routines declared
+// X routines declared
 void init_x();
 void close_x();
 
@@ -97,8 +91,6 @@ void drawing_board(bool mode) {
 
     // start the main loop
     cout << "You can use \'q\' or \'Q\' to terminate the program at any time. :)\n";
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
     while(1) {
         /* get the next event and stuff it into our event variable.
            Note:  only events we set the mask for are detected!
@@ -279,7 +271,6 @@ void drawing_board(bool mode) {
                 break;
         }
     }
-#pragma clang diagnostic pop
 }
 int held_karp(unsigned long n) {
     map<pair<int, int>, pair<int, int> > map_container;
