@@ -4,11 +4,11 @@ Has two input modes:
 * Command-Line: Pass a .txt file containing integers 0 to 500
 with two coordinates "x, y" per line.
 
-![alt text](https://github.com/ "Mode: Command-Line")
+![alt text](https://github.com/NikaTsanka/tsp-held-karp/blob/master/demo-cmd.gif "Mode: Command-Line")
 
 * Interactive: The coordinates can be entered by mouseclicks (left mouseclick enters a point, a right mouseclick ends the input phase).
 
-![alt text](https://github.com/ "Mode: Interactive")
+![alt text](https://github.com/NikaTsanka/tsp-held-karp/blob/master/demo-interactive.gif "Mode: Interactive")
 
 Use the right mouseclick to display the solution.
 
